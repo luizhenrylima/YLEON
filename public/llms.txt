@@ -1,0 +1,18 @@
+# YLEON
+
+> Catálogo digital de mobiliário de luxo brasileiro e internacional, voltado para arquitetos e designers de interiores. Reúne blocos 3D, fichas técnicas e acabamentos das marcas mais exclusivas.
+
+A plataforma é de acesso restrito (após aprovação) para profissionais especificadores. O showroom físico fica em Cuiabá, MT.
+
+## Pages
+
+- [Home](/): Apresentação do acervo, designers em destaque e produtos selecionados.
+- [Catálogo](/catalog): Navegação completa por marcas, categorias e acabamentos.
+- [Link in Bio](/bioinsta): Atalhos para WhatsApp dos consultores e endereço do showroom.
+- [Marketing](/marketing): Materiais institucionais.
+
+## Optional
+
+- [Política de Privacidade](/privacidade)
+- [Termos de Uso](/termos)
+- [Login](/auth)

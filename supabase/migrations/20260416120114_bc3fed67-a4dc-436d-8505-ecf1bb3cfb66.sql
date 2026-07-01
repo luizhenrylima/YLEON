@@ -1,0 +1,1 @@
+ALTER TABLE public.project_items ADD COLUMN presentation_image_2_index integer DEFAULT NULL;

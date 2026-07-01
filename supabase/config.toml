@@ -1,0 +1,22 @@
+project_id = "xdqujpcoknbyyimccphs"
+
+[functions.bulk-import-century-category]
+verify_jwt = true
+
+[functions.bulk-import-century-finishes]
+verify_jwt = true
+
+[functions.migrate-images]
+verify_jwt = true
+
+[functions.compress-finishes]
+verify_jwt = true
+
+[functions.create-seller]
+verify_jwt = true
+
+[functions.delete-user]
+verify_jwt = true
+
+[functions.proxy-file]
+verify_jwt = false

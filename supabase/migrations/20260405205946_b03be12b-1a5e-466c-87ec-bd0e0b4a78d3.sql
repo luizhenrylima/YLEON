@@ -1,0 +1,1 @@
+ALTER TABLE public.project_items ADD COLUMN selected_finish_id_2 uuid REFERENCES public.finishes(id) ON DELETE SET NULL DEFAULT NULL;
