@@ -16,6 +16,8 @@ function cleanText(value: unknown): string {
   return String(value ?? "").replace(/\s+/g, " ").trim();
 }
 
+const allowedRoles = new Set(["ceo", "gestor", "financeiro", "vendedor", "arquiteto"]);
+
 function requestIp(req: Request) {
   return req.headers.get("cf-connecting-ip")
     || req.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
@@ -88,16 +90,22 @@ Deno.serve(async (req) => {
     const fullName = cleanText(body.fullName);
     const email = cleanText(body.email).toLowerCase();
     const password = String(body.password ?? "");
+    const role = cleanText(body.role || "vendedor");
+    const phone = cleanText(body.phone);
+    const officeName = cleanText(body.officeName);
+    const sellerId = cleanText(body.sellerId);
+    const active = body.active !== false;
 
-    if (!fullName) return jsonResponse({ error: "Nome do vendedor e obrigatorio" }, 400);
+    if (!fullName) return jsonResponse({ error: "Nome do usuario e obrigatorio" }, 400);
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return jsonResponse({ error: "Email invalido" }, 400);
     if (password.length < 6) return jsonResponse({ error: "A senha precisa ter pelo menos 6 caracteres" }, 400);
+    if (!allowedRoles.has(role)) return jsonResponse({ error: "Perfil invalido" }, 400);
 
     const { data: createdUser, error: createError } = await auth.supabase.auth.admin.createUser({
       email,
       password,
       email_confirm: true,
-      user_metadata: { full_name: fullName },
+      user_metadata: { full_name: fullName, role, phone, office_name: officeName },
     });
     if (createError) return jsonResponse({ error: createError.message }, 400);
 
@@ -107,8 +115,12 @@ Deno.serve(async (req) => {
     const profilePayload = {
       user_id: userId,
       full_name: fullName,
-      approved: true,
-      seller_id: null,
+      email,
+      phone: phone || null,
+      office_name: officeName || null,
+      approved: active,
+      is_active: active,
+      seller_id: role === "arquiteto" && sellerId ? sellerId : null,
     };
 
     const { data: profile, error: profileError } = await auth.supabase
@@ -118,14 +130,14 @@ Deno.serve(async (req) => {
       .single();
     if (profileError) throw profileError;
 
-    const { data: role, error: roleError } = await auth.supabase
+    const { data: userRole, error: roleError } = await auth.supabase
       .from("user_roles")
-      .upsert({ user_id: userId, role: "vendedor" }, { onConflict: "user_id,role" })
+      .upsert({ user_id: userId, role }, { onConflict: "user_id,role" })
       .select("*")
       .single();
     if (roleError) throw roleError;
 
-    return jsonResponse({ success: true, profile, role });
+    return jsonResponse({ success: true, profile, role: userRole });
   } catch (error) {
     console.error("create-seller error:", error);
     return jsonResponse({ error: error instanceof Error ? error.message : "Erro desconhecido" }, 500);

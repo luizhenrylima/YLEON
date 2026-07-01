@@ -3,7 +3,8 @@ import { supabase } from '@/integrations/supabase/client';
 import type { AuthError, Session, User } from '@supabase/supabase-js';
 
 type AuthResult = { error: AuthError | { message: string } | null };
-type AccessStatus = { admin: boolean; manager: boolean; seller: boolean; architect: boolean; approved: boolean };
+type AppRole = 'admin' | 'ceo' | 'gestor' | 'financeiro' | 'vendedor' | 'arquiteto';
+type AccessStatus = { admin: boolean; ceo: boolean; manager: boolean; finance: boolean; seller: boolean; architect: boolean; approved: boolean };
 
 interface AuthContextType {
   user: User | null;
@@ -11,6 +12,8 @@ interface AuthContextType {
   loading: boolean;
   isAdmin: boolean;
   isManager: boolean;
+  isCeo: boolean;
+  isFinance: boolean;
   isSeller: boolean;
   isArchitect: boolean;
   isStaff: boolean;
@@ -47,13 +50,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isCeo, setIsCeo] = useState(false);
   const [isManager, setIsManager] = useState(false);
+  const [isFinance, setIsFinance] = useState(false);
   const [isSeller, setIsSeller] = useState(false);
   const [isArchitect, setIsArchitect] = useState(false);
   const [isApproved, setIsApproved] = useState<boolean | null>(null);
   const authRequestId = useRef(0);
 
-  const checkRole = async (userId: string, role: 'admin' | 'gestor' | 'vendedor' | 'arquiteto'): Promise<boolean> => {
+  const checkRole = async (userId: string, role: AppRole): Promise<boolean> => {
     try {
       const { data } = await supabase.rpc('has_role', { _user_id: userId, _role: role as any });
       return !!data;
@@ -72,22 +77,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const getAccessStatus = async (userId: string): Promise<AccessStatus> => {
-    const [admin, manager, seller, architect, approved] = await Promise.all([
+    const [admin, ceo, manager, finance, seller, architect, approved] = await Promise.all([
       checkRole(userId, 'admin'),
+      checkRole(userId, 'ceo'),
       checkRole(userId, 'gestor'),
+      checkRole(userId, 'financeiro'),
       checkRole(userId, 'vendedor'),
       checkRole(userId, 'arquiteto'),
       checkApproval(userId),
     ]);
 
-    return { admin, manager, seller, architect, approved };
+    return { admin, ceo, manager, finance, seller, architect, approved };
   };
 
   const clearAuthState = (approved: boolean | null = null) => {
     setSession(null);
     setUser(null);
     setIsAdmin(false);
+    setIsCeo(false);
     setIsManager(false);
+    setIsFinance(false);
     setIsSeller(false);
     setIsArchitect(false);
     setIsApproved(approved);
@@ -104,7 +113,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      const { admin, manager, seller, architect, approved } = await getAccessStatus(nextSession.user.id);
+      const { admin, ceo, manager, finance, seller, architect, approved } = await getAccessStatus(nextSession.user.id);
 
       if (requestId !== authRequestId.current) return;
 
@@ -118,9 +127,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(nextSession);
       setUser(nextSession.user);
       setIsAdmin(admin);
-      setIsManager(manager);
+      setIsCeo(ceo);
+      setIsManager(manager || ceo);
+      setIsFinance(finance);
       setIsSeller(seller);
-      setIsArchitect(architect || (!admin && !manager && !seller));
+      setIsArchitect(architect || (!admin && !ceo && !manager && !finance && !seller));
       setIsApproved(approved);
       setLoading(false);
     } catch (error) {
@@ -229,10 +240,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const isStaff = isAdmin || isManager || isSeller;
+  const isStaff = isAdmin || isManager || isSeller || isFinance;
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, isAdmin, isManager, isSeller, isArchitect, isStaff, isApproved, signUp, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, isAdmin, isManager, isCeo, isFinance, isSeller, isArchitect, isStaff, isApproved, signUp, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   );

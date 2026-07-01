@@ -6,53 +6,57 @@
 
 @layer base {
   :root {
-    /* ── Light Contemporary Palette ── */
-    --background: 45 24% 96%;
-    --foreground: 92 15% 12%;
+    /* Sellier palette: leather, atelier warmth, and signature orange. */
+    --background: 38 32% 96%;
+    --foreground: 24 28% 11%;
 
-    --card: 42 28% 94%;
-    --card-foreground: 92 15% 12%;
+    --card: 36 34% 94%;
+    --card-foreground: 24 28% 11%;
 
-    --popover: 42 30% 97%;
-    --popover-foreground: 92 15% 12%;
+    --popover: 36 36% 97%;
+    --popover-foreground: 24 28% 11%;
 
-    --primary: 94 22% 16%;
-    --primary-foreground: 45 30% 96%;
+    --primary: 24 30% 15%;
+    --primary-foreground: 38 40% 97%;
 
-    --secondary: 70 18% 89%;
-    --secondary-foreground: 92 15% 18%;
+    --secondary: 32 26% 89%;
+    --secondary-foreground: 24 26% 16%;
 
-    --muted: 56 16% 88%;
-    --muted-foreground: 80 8% 40%;
+    --muted: 32 20% 87%;
+    --muted-foreground: 28 12% 41%;
 
-    /* Warm gold accent */
-    --accent: 42 58% 55%;
-    --accent-foreground: 96 25% 12%;
+    --accent: 19 89% 54%;
+    --accent-foreground: 20 45% 12%;
 
-    --destructive: 0 65% 52%;
+    --destructive: 4 68% 48%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 47 18% 80%;
-    --input: 47 18% 80%;
-    --ring: 42 58% 55%;
+    --border: 30 22% 79%;
+    --input: 30 22% 79%;
+    --ring: 19 89% 54%;
 
-    --radius: 0.375rem;
+    --radius: 0.5rem;
 
-    /* Custom tokens */
-    --gold: 42 58% 55%;
-    --gold-dim: 40 38% 39%;
-    --surface-1: 45 24% 96%;
-    --surface-2: 70 18% 89%;
-    --surface-3: 58 16% 84%;
+    /* Compatibility tokens, recalibrated for the YLEON Sellier theme. */
+    --gold: 19 89% 54%;
+    --gold-dim: 16 62% 38%;
+    --surface-1: 38 32% 96%;
+    --surface-2: 32 26% 89%;
+    --surface-3: 30 20% 83%;
 
-    --sidebar-background: 45 24% 96%;
-    --sidebar-foreground: 92 15% 18%;
-    --sidebar-primary: 42 58% 55%;
-    --sidebar-primary-foreground: 96 25% 12%;
-    --sidebar-accent: 70 18% 89%;
-    --sidebar-accent-foreground: 92 15% 18%;
-    --sidebar-border: 47 18% 80%;
-    --sidebar-ring: 42 58% 55%;
+    --leather: 20 38% 18%;
+    --leather-light: 22 30% 28%;
+    --saddle-stitch: 30 22% 79%;
+    --ribbon: 19 89% 54%;
+
+    --sidebar-background: 24 30% 12%;
+    --sidebar-foreground: 38 30% 92%;
+    --sidebar-primary: 19 89% 54%;
+    --sidebar-primary-foreground: 20 45% 12%;
+    --sidebar-accent: 24 26% 20%;
+    --sidebar-accent-foreground: 38 30% 92%;
+    --sidebar-border: 24 20% 24%;
+    --sidebar-ring: 19 89% 54%;
 
     --font-display: 'Playfair Display', Georgia, serif;
     --font-body: 'DM Sans', system-ui, sans-serif;
@@ -118,12 +122,58 @@ body.app-fullscreen {
     font-family: var(--font-body);
   }
 
-  /* Gold gradient text */
+  /* Orange gradient text; the class name stays for compatibility. */
   .text-gold-gradient {
-    background: linear-gradient(135deg, hsl(45 72% 70%), hsl(39 48% 44%));
+    background: linear-gradient(135deg, hsl(28 92% 62%), hsl(14 78% 42%));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
+  }
+
+  .saddle-stitch {
+    position: relative;
+  }
+
+  .saddle-stitch::before {
+    content: '';
+    position: absolute;
+    inset: 6px;
+    border: 1px dashed hsl(var(--saddle-stitch) / 0.55);
+    border-radius: inherit;
+    pointer-events: none;
+  }
+
+  .stitch-divider {
+    position: relative;
+    height: 1px;
+    background: repeating-linear-gradient(
+      90deg,
+      hsl(var(--saddle-stitch)) 0px,
+      hsl(var(--saddle-stitch)) 5px,
+      transparent 5px,
+      transparent 10px
+    );
+  }
+
+  .box-frame {
+    border: 1px solid hsl(var(--accent) / 0.35);
+    position: relative;
+  }
+
+  .box-frame::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border: 1px solid hsl(var(--accent) / 0.15);
+    margin: 5px;
+    pointer-events: none;
+  }
+
+  .ribbon-tag {
+    background: hsl(var(--accent));
+    color: hsl(var(--accent-foreground));
+    font-family: var(--font-body);
+    font-weight: 600;
   }
 
   /* Subtle noise texture overlay */

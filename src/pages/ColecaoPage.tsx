@@ -41,7 +41,7 @@ function getProductImage(product: Product | undefined) {
   return product?.ambient_images?.[0] || product?.images?.[0] || '/placeholder.svg';
 }
 
-export default function CuradoriaPage() {
+export default function ColecaoPage() {
   const [collections, setCollections] = useState<CuratedCollection[]>([]);
   const [collectionProducts, setCollectionProducts] = useState<CuratedCollectionProduct[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -52,7 +52,7 @@ export default function CuradoriaPage() {
   useEffect(() => {
     let cancelled = false;
 
-    const fetchCuradoria = async () => {
+    const fetchColecao = async () => {
       setLoading(true);
       setLoadError(null);
       try {
@@ -64,7 +64,7 @@ export default function CuradoriaPage() {
 
         if (cancelled) return;
         if (collectionsResult.error) {
-          setLoadError('Não foi possível carregar as seleções da curadoria.');
+          setLoadError('Não foi possível carregar as seleções da coleção.');
           setCollections([]);
           setCollectionProducts([]);
           setProducts([]);
@@ -121,7 +121,7 @@ export default function CuradoriaPage() {
 
         if (cancelled) return;
         if (productsResult.error) {
-          setLoadError('Não foi possível carregar os produtos da curadoria.');
+          setLoadError('Não foi possível carregar os produtos da coleção.');
           setProducts([]);
           setBrands([]);
           return;
@@ -161,7 +161,7 @@ export default function CuradoriaPage() {
       }
     };
 
-    void fetchCuradoria();
+    void fetchColecao();
     return () => { cancelled = true; };
   }, []);
 
@@ -196,8 +196,8 @@ export default function CuradoriaPage() {
   return (
     <main className="min-h-screen bg-background text-foreground">
       <Helmet>
-        <title>Curadoria YLEON | YLEON</title>
-        <meta name="description" content="Seleções de produtos criadas pela YLEON para projetos de arquitetura e interiores." />
+        <title>Coleção YLEON | YLEON</title>
+        <meta name="description" content="Coleções de produtos criadas pela YLEON para projetos de arquitetura e interiores." />
       </Helmet>
 
       <section className="relative min-h-[72vh] overflow-hidden bg-black text-white">
@@ -208,7 +208,7 @@ export default function CuradoriaPage() {
         />
         <div className="absolute inset-0 bg-black/45" />
         <div className="relative mx-auto flex min-h-[72vh] max-w-7xl flex-col justify-end px-6 pb-14 pt-28 md:px-10 lg:px-12">
-          <span className="mb-5 text-[10px] uppercase tracking-[0.32em] text-white/70">Curadoria YLEON</span>
+          <span className="mb-5 text-[10px] uppercase tracking-[0.32em] text-white/70">Coleção YLEON</span>
           <h1 className="max-w-4xl text-4xl font-serif leading-tight md:text-6xl lg:text-7xl">
             Seleções prontas para projetos com presença.
           </h1>
@@ -226,14 +226,14 @@ export default function CuradoriaPage() {
       {loadError ? (
         <section className="mx-auto flex min-h-[45vh] max-w-4xl items-center justify-center px-6 text-center">
           <div>
-            <p className="text-[10px] uppercase tracking-[0.25em] text-accent">Curadoria indisponível</p>
+            <p className="text-[10px] uppercase tracking-[0.25em] text-accent">Coleção indisponível</p>
             <h2 className="mt-3 text-3xl font-serif text-foreground">{loadError}</h2>
           </div>
         </section>
       ) : curatedSections.length === 0 ? (
         <section className="mx-auto flex min-h-[45vh] max-w-4xl items-center justify-center px-6 text-center">
           <div>
-            <p className="text-[10px] uppercase tracking-[0.25em] text-accent">Curadoria em construção</p>
+            <p className="text-[10px] uppercase tracking-[0.25em] text-accent">Coleção em construção</p>
             <h2 className="mt-3 text-3xl font-serif text-foreground">As seleções aparecerão aqui quando o Admin adicionar produtos.</h2>
           </div>
         </section>
@@ -267,7 +267,7 @@ export default function CuradoriaPage() {
 
                   <div className="flex flex-col justify-between">
                     <div className="max-w-2xl">
-                      <span className="text-[10px] uppercase tracking-[0.25em] text-accent">Curadoria YLEON</span>
+                      <span className="text-[10px] uppercase tracking-[0.25em] text-accent">Coleção YLEON</span>
                       <h2 className="mt-3 text-3xl font-serif leading-tight md:text-5xl">{section.collection.title}</h2>
                       {section.collection.description && (
                         <p className="mt-5 text-sm leading-7 text-muted-foreground md:max-w-xl">

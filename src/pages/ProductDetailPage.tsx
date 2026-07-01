@@ -11,7 +11,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import type { Tables } from '@/integrations/supabase/types';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { toast } from '@/hooks/use-toast';
-import { buildNewProjectPayload } from '@/lib/projectDefaults';
+import { buildNewProjectPayload, projectMutationErrorMessage } from '@/lib/projectDefaults';
 import { checkClientRateLimit, rateLimitMessage } from '@/lib/rateLimit';
 import { firstZodMessage, projectNameSchema, sanitizePlainText } from '@/lib/validation';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
@@ -706,7 +706,8 @@ export default function ProductDetailPage() {
       .select(PROJECT_PICKER_SELECT)
       .single();
     if (error) {
-      toast({ title: 'Erro ao criar projeto', description: 'Confira os dados e suas permissoes.', variant: 'destructive' });
+      if (import.meta.env.DEV) console.error('Product project creation error:', error);
+      toast({ title: 'Erro ao criar projeto', description: projectMutationErrorMessage(error), variant: 'destructive' });
       return;
     }
     if (data) {

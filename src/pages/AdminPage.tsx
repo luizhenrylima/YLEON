@@ -22,6 +22,15 @@ import {
 type Brand = Tables<'brands'> & { is_hidden?: boolean | null };
 type Product = Tables<'products'> & { ambient_images?: string[] | null; is_hidden?: boolean | null };
 type Category = Tables<'categories'>;
+type AdminAssignableRole = 'ceo' | 'gestor' | 'financeiro' | 'vendedor' | 'arquiteto';
+
+const ADMIN_ROLE_OPTIONS: { value: AdminAssignableRole; label: string; description: string }[] = [
+  { value: 'arquiteto', label: 'Arquiteto', description: 'Catalogo, favoritos e projetos proprios.' },
+  { value: 'vendedor', label: 'Vendedor', description: 'Rotina, carteira e projetos vinculados.' },
+  { value: 'gestor', label: 'Gerente', description: 'Gestao operacional e rotina geral.' },
+  { value: 'ceo', label: 'CEO', description: 'Operacao completa, sem acesso ao Admin.' },
+  { value: 'financeiro', label: 'Financeiro', description: 'Perfil preparado para modulo financeiro.' },
+];
 
 interface BrandCategory {
   brand_id: string;
@@ -150,7 +159,7 @@ interface FinishImportCategoryResult {
 async function invokeAdminEdgeFunction<T>(functionName: string, body: Record<string, unknown>): Promise<T> {
   const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
   if (sessionError || !sessionData.session?.access_token) {
-    throw new Error('Sessao expirada. Entre novamente para importar.');
+    throw new Error('Sessao expirada. Entre novamente para continuar.');
   }
 
   const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${functionName}`, {
@@ -241,7 +250,7 @@ const ADMIN_LANDING_IMAGE_FIELDS = 'id, image_url, alt_text, display_order';
 const ADMIN_STYLE_TAG_FIELDS = 'id, name';
 const ADMIN_FEATURED_PRODUCT_FIELDS = 'id, product_id, display_order';
 const ADMIN_ENVIRONMENT_FIELDS = 'id, name, icon';
-const ADMIN_PROFILE_FIELDS = 'id, user_id, full_name, approved, seller_id, birth_date, created_at';
+const ADMIN_PROFILE_FIELDS = 'id, user_id, full_name, approved, seller_id, birth_date, phone, email, office_name, is_active, created_at';
 const ADMIN_USER_ROLE_FIELDS = 'id, user_id, role';
 const ADMIN_FINISH_CATEGORY_FIELDS = 'id, brand_id, name, display_order, finish_group';
 const ADMIN_FINISH_FIELDS = 'id, finish_category_id, name, image_url, display_order';
@@ -378,16 +387,29 @@ export default function AdminPage() {
     approved: boolean;
     seller_id: string | null;
     birth_date: string | null;
+    phone?: string | null;
+    email?: string | null;
+    office_name?: string | null;
+    is_active?: boolean | null;
     created_at: string;
   }
   interface UserRole {
     id: string;
     user_id: string;
-    role: 'admin' | 'user' | 'vendedor';
+    role: 'admin' | 'user' | AdminAssignableRole;
   }
   const [userProfiles, setUserProfiles] = useState<UserProfile[]>([]);
   const [userRoles, setUserRoles] = useState<UserRole[]>([]);
-  const [newSeller, setNewSeller] = useState({ fullName: '', email: '', password: '' });
+  const [newSeller, setNewSeller] = useState({
+    fullName: '',
+    email: '',
+    password: '',
+    role: 'arquiteto' as AdminAssignableRole,
+    phone: '',
+    officeName: '',
+    sellerId: '',
+    active: true,
+  });
   const [isCreatingSeller, setIsCreatingSeller] = useState(false);
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
 
@@ -1117,9 +1139,9 @@ export default function AdminPage() {
       setSelectedCuratedProductIds([]);
       setCuratedProductSearch('');
       setEditingCuratedCollectionId(null);
-      alert('Seleção salva na Curadoria YLEON.');
+      alert('Seleção salva na Coleção YLEON.');
     } catch (error: any) {
-      console.error('Erro ao salvar curadoria:', error);
+      console.error('Erro ao salvar coleção:', error);
       alert(`Não foi possível salvar a seleção: ${error?.message || 'verifique as permissões do banco e tente novamente.'}`);
     }
   };
@@ -1276,21 +1298,23 @@ export default function AdminPage() {
 
   const createSeller = async () => {
     if (!newSeller.fullName.trim() || !newSeller.email.trim() || !newSeller.password) {
-      alert('Preencha nome, email e senha provisoria do vendedor.');
+      alert('Preencha nome, email e senha provisoria do usuario.');
       return;
     }
 
     setIsCreatingSeller(true);
     try {
-      const { data, error } = await supabase.functions.invoke('create-seller', {
-        body: {
-          fullName: newSeller.fullName.trim(),
-          email: newSeller.email.trim(),
-          password: newSeller.password,
-        },
+      const data = await invokeAdminEdgeFunction<{ success: boolean; error?: string; profile?: UserProfile; role?: UserRole }>('create-seller', {
+        fullName: newSeller.fullName.trim(),
+        email: newSeller.email.trim(),
+        password: newSeller.password,
+        role: newSeller.role,
+        phone: newSeller.phone.trim(),
+        officeName: newSeller.officeName.trim(),
+        sellerId: newSeller.role === 'arquiteto' ? newSeller.sellerId || null : null,
+        active: newSeller.active,
       });
-      if (error) throw error;
-      if (!data?.success) throw new Error(data?.error || 'Nao foi possivel cadastrar o vendedor');
+      if (!data?.success) throw new Error(data?.error || 'Nao foi possivel cadastrar o usuario');
 
       if (data.profile) {
         setUserProfiles(prev => [
@@ -1301,15 +1325,15 @@ export default function AdminPage() {
       if (data.role) {
         setUserRoles(prev => [
           data.role as UserRole,
-          ...prev.filter(role => !(role.user_id === data.role.user_id && role.role === 'vendedor')),
+          ...prev.filter(role => !(role.user_id === data.role.user_id && role.role === data.role.role)),
         ]);
       }
 
-      setNewSeller({ fullName: '', email: '', password: '' });
-      alert('Vendedor cadastrado com sucesso.');
+      setNewSeller({ fullName: '', email: '', password: '', role: 'arquiteto', phone: '', officeName: '', sellerId: '', active: true });
+      alert('Usuario cadastrado com sucesso.');
     } catch (err: any) {
       console.error('Create seller error:', err);
-      alert('Erro ao cadastrar vendedor: ' + (err.message || 'Tente novamente'));
+      alert('Erro ao cadastrar usuario: ' + (err.message || 'Tente novamente'));
     } finally {
       setIsCreatingSeller(false);
     }
@@ -1317,8 +1341,8 @@ export default function AdminPage() {
 
   // User approval
   const approveUser = async (userId: string) => {
-    await supabase.from('profiles').update({ approved: true }).eq('user_id', userId);
-    setUserProfiles(userProfiles.map(u => u.user_id === userId ? { ...u, approved: true } : u));
+    await (supabase as any).from('profiles').update({ approved: true, is_active: true }).eq('user_id', userId);
+    setUserProfiles(userProfiles.map(u => u.user_id === userId ? { ...u, approved: true, is_active: true } : u));
   };
 
   const promoteSeller = async (userId: string) => {
@@ -1348,6 +1372,12 @@ export default function AdminPage() {
     const nextBirthDate = birthDate || null;
     await (supabase as any).from('profiles').update({ birth_date: nextBirthDate }).eq('user_id', userId);
     setUserProfiles(prev => prev.map(profile => profile.user_id === userId ? { ...profile, birth_date: nextBirthDate } : profile));
+  };
+
+  const updateUserProfileField = async (userId: string, field: 'phone' | 'office_name' | 'is_active', value: string | boolean) => {
+    const nextValue = typeof value === 'string' ? value.trim() || null : value;
+    await (supabase as any).from('profiles').update({ [field]: nextValue }).eq('user_id', userId);
+    setUserProfiles(prev => prev.map(profile => profile.user_id === userId ? { ...profile, [field]: nextValue } : profile));
   };
 
   const deleteUserPermanently = async (userId: string) => {
@@ -1465,11 +1495,23 @@ export default function AdminPage() {
   const getPrimaryRole = (userId: string) => {
     const roles = roleMap.get(userId);
     if (roles?.has('admin')) return 'admin';
+    if (roles?.has('ceo')) return 'ceo';
+    if (roles?.has('gestor')) return 'gestor';
+    if (roles?.has('financeiro')) return 'financeiro';
     if (roles?.has('vendedor')) return 'vendedor';
+    if (roles?.has('arquiteto')) return 'arquiteto';
     return 'user';
   };
   const sellerUsers = approvedUsers.filter(userProfile => getPrimaryRole(userProfile.user_id) === 'vendedor');
   const sellerNameMap = new Map(sellerUsers.map(seller => [seller.user_id, seller.full_name || 'Vendedor']));
+  const roleLabel = (role: ReturnType<typeof getPrimaryRole>) => {
+    if (role === 'admin') return 'Admin';
+    if (role === 'ceo') return 'CEO';
+    if (role === 'gestor') return 'Gerente';
+    if (role === 'financeiro') return 'Financeiro';
+    if (role === 'vendedor') return 'Vendedor';
+    return 'Arquiteto';
+  };
 
   if (loading) {
     return (
@@ -2117,7 +2159,7 @@ export default function AdminPage() {
           <div className="bg-card p-6 md:p-8 rounded-2xl border border-border mt-8">
             <div className="mb-6 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
               <div>
-                <span className="text-[10px] uppercase tracking-[0.22em] text-accent">Curadoria YLEON</span>
+                <span className="text-[10px] uppercase tracking-[0.22em] text-accent">Coleção YLEON</span>
                 <h3 className="text-xl font-serif text-foreground mt-1">Seleções prontas</h3>
                 <p className="text-xs text-muted-foreground mt-1">Crie uma seleção, adicione produtos e salve.</p>
               </div>
@@ -2165,7 +2207,7 @@ export default function AdminPage() {
                       onChange={e => setNewCuratedCollection({ ...newCuratedCollection, isActive: e.target.checked })}
                       className="accent-primary"
                     />
-                    Exibir na página Curadoria
+                    Exibir na página Coleção
                   </label>
                 </div>
               </details>
@@ -2533,12 +2575,12 @@ export default function AdminPage() {
           </div>
 
           <div className="bg-card p-8 rounded-2xl border border-border mb-8">
-            <SectionHeader icon={UserCheck} title="Cadastrar Vendedor" subtitle="Crie um acesso aprovado com papel de vendedor" />
+            <SectionHeader icon={UserCheck} title="Cadastrar usuario" subtitle="Crie acessos aprovados para CEO, gerente, financeiro, vendedor e arquiteto" />
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <input
                 value={newSeller.fullName}
                 onChange={(event) => setNewSeller(prev => ({ ...prev, fullName: event.target.value }))}
-                placeholder="Nome do vendedor"
+                placeholder="Nome completo"
                 className="px-3 py-2.5 bg-secondary border border-border rounded-lg text-sm text-foreground"
               />
               <input
@@ -2555,7 +2597,54 @@ export default function AdminPage() {
                 placeholder="Senha provisoria"
                 className="px-3 py-2.5 bg-secondary border border-border rounded-lg text-sm text-foreground"
               />
+              <select
+                value={newSeller.role}
+                onChange={(event) => setNewSeller(prev => ({ ...prev, role: event.target.value as AdminAssignableRole }))}
+                className="px-3 py-2.5 bg-secondary border border-border rounded-lg text-sm text-foreground"
+              >
+                {ADMIN_ROLE_OPTIONS.map(option => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </select>
             </div>
+            <p className="mt-2 text-[11px] text-muted-foreground">
+              {ADMIN_ROLE_OPTIONS.find(option => option.value === newSeller.role)?.description}
+            </p>
+            {newSeller.role === 'arquiteto' && (
+              <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3">
+                <input
+                  value={newSeller.phone}
+                  onChange={(event) => setNewSeller(prev => ({ ...prev, phone: event.target.value }))}
+                  placeholder="Telefone"
+                  className="px-3 py-2.5 bg-secondary border border-border rounded-lg text-sm text-foreground"
+                />
+                <input
+                  value={newSeller.officeName}
+                  onChange={(event) => setNewSeller(prev => ({ ...prev, officeName: event.target.value }))}
+                  placeholder="Escritorio (opcional)"
+                  className="px-3 py-2.5 bg-secondary border border-border rounded-lg text-sm text-foreground"
+                />
+                <select
+                  value={newSeller.sellerId}
+                  onChange={(event) => setNewSeller(prev => ({ ...prev, sellerId: event.target.value }))}
+                  className="px-3 py-2.5 bg-secondary border border-border rounded-lg text-sm text-foreground"
+                >
+                  <option value="">Vendedor responsavel</option>
+                  {sellerUsers.map(seller => (
+                    <option key={seller.user_id} value={seller.user_id}>{seller.full_name || 'Vendedor'}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <label className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={newSeller.active}
+                onChange={(event) => setNewSeller(prev => ({ ...prev, active: event.target.checked }))}
+                className="h-4 w-4 accent-accent"
+              />
+              Usuario ativo
+            </label>
             <div className="mt-4 flex justify-end">
               <button
                 type="button"
@@ -2564,7 +2653,7 @@ export default function AdminPage() {
                 className="inline-flex items-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground rounded-lg text-[10px] uppercase tracking-[0.14em] font-medium hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
               >
                 {isCreatingSeller ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />}
-                {isCreatingSeller ? 'Cadastrando' : 'Cadastrar vendedor'}
+                {isCreatingSeller ? 'Cadastrando' : 'Cadastrar usuario'}
               </button>
             </div>
           </div>
@@ -2629,7 +2718,7 @@ export default function AdminPage() {
                         <p className="text-[10px] text-muted-foreground">
                           Desde {new Date(u.created_at).toLocaleDateString('pt-BR')}
                         </p>
-                        {getPrimaryRole(u.user_id) === 'user' && (
+                        {(getPrimaryRole(u.user_id) === 'user' || getPrimaryRole(u.user_id) === 'arquiteto') && (
                           <div className="mt-2 grid gap-2 sm:grid-cols-2">
                             <label className="block">
                               <span className="sr-only">Vendedor responsavel</span>
@@ -2656,15 +2745,43 @@ export default function AdminPage() {
                                 title="Data de nascimento do arquiteto"
                               />
                             </label>
+                            <label className="block">
+                              <span className="sr-only">Telefone</span>
+                              <input
+                                type="text"
+                                defaultValue={u.phone || ''}
+                                onBlur={(event) => updateUserProfileField(u.user_id, 'phone', event.target.value)}
+                                className="w-full max-w-xs px-2 py-1.5 bg-background border border-border rounded-md text-[11px] text-foreground"
+                                placeholder="Telefone"
+                              />
+                            </label>
+                            <label className="block">
+                              <span className="sr-only">Escritorio</span>
+                              <input
+                                type="text"
+                                defaultValue={u.office_name || ''}
+                                onBlur={(event) => updateUserProfileField(u.user_id, 'office_name', event.target.value)}
+                                className="w-full max-w-xs px-2 py-1.5 bg-background border border-border rounded-md text-[11px] text-foreground"
+                                placeholder="Escritorio"
+                              />
+                            </label>
                           </div>
                         )}
                       </div>
                       <div className="flex items-center gap-2 flex-wrap justify-end">
-                        <span className="text-[10px] text-green-600 bg-green-600/10 px-2 py-1 rounded-full flex items-center gap-1">
-                          <Check size={10} /> Ativo
-                        </span>
+                        <button
+                          type="button"
+                          onClick={() => updateUserProfileField(u.user_id, 'is_active', u.is_active === false)}
+                          className={`text-[10px] px-2 py-1 rounded-full flex items-center gap-1 ${
+                            u.is_active === false
+                              ? 'text-muted-foreground bg-muted'
+                              : 'text-green-600 bg-green-600/10'
+                          }`}
+                        >
+                          <Check size={10} /> {u.is_active === false ? 'Inativo' : 'Ativo'}
+                        </button>
                         <span className="text-[10px] text-accent bg-accent/10 px-2 py-1 rounded-full uppercase tracking-[0.08em]">
-                          {getPrimaryRole(u.user_id) === 'admin' ? 'Admin' : getPrimaryRole(u.user_id) === 'vendedor' ? 'Vendedor' : 'Arquiteto'}
+                          {roleLabel(getPrimaryRole(u.user_id))}
                         </span>
                         {getPrimaryRole(u.user_id) === 'vendedor' && (
                           <button

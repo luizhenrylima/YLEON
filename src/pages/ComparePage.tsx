@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { ArrowLeft, Check, FolderPlus, X } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
-import { buildNewProjectPayload } from '@/lib/projectDefaults';
+import { buildNewProjectPayload, projectMutationErrorMessage } from '@/lib/projectDefaults';
 import type { Tables } from '@/integrations/supabase/types';
 
 type Project = Tables<'projects'>;
@@ -48,7 +48,8 @@ export default function ComparePage() {
       .select(PROJECT_PICKER_FIELDS)
       .single();
     if (error) {
-      toast({ title: 'Erro ao criar projeto', description: 'Confira os dados e suas permissoes.', variant: 'destructive' });
+      if (import.meta.env.DEV) console.error('Compare project creation error:', error);
+      toast({ title: 'Erro ao criar projeto', description: projectMutationErrorMessage(error), variant: 'destructive' });
       return;
     }
     if (data) {

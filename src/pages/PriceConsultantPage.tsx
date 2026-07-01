@@ -48,6 +48,8 @@ type TenantInfo = {
   name: string;
 };
 
+const DEFAULT_PRICE_TENANT_SLUG = 'acervo-1055';
+
 type Brand = {
   id: string;
   name: string;
@@ -177,7 +179,7 @@ function LoadingLine() {
 }
 
 export default function PriceConsultantPage() {
-  const { user, isStaff, loading } = useAuth();
+  const { user, isAdmin, isManager, isSeller, isFinance, loading } = useAuth();
   const [state, setState] = useState<PriceConsultationState>(emptyPriceConsultationState);
   const [globalSearch, setGlobalSearch] = useState('');
   const [productSearch, setProductSearch] = useState('');
@@ -205,7 +207,7 @@ export default function PriceConsultantPage() {
         .select('id, name');
       const { data: tenant, error: tenantError } = profile?.tenant_id
         ? await tenantQueryBuilder.eq('id', profile.tenant_id).maybeSingle()
-        : await tenantQueryBuilder.eq('slug', 'acervo-1055').maybeSingle();
+        : await tenantQueryBuilder.eq('slug', DEFAULT_PRICE_TENANT_SLUG).maybeSingle();
 
       if (tenantError) throw tenantError;
       return tenant as TenantInfo | null;
@@ -514,7 +516,8 @@ export default function PriceConsultantPage() {
     setState(prev => ({ ...prev, variationId, selectedPriceId: null }));
   };
 
-  if (!loading && !isStaff) return <Navigate to="/catalog" replace />;
+  const canAccessQuote = isAdmin || isManager || isSeller || isFinance;
+  if (!loading && !canAccessQuote) return <Navigate to="/catalog" replace />;
 
   if (tenantQuery.isLoading) {
     return (
@@ -531,8 +534,8 @@ export default function PriceConsultantPage() {
       <main className="min-h-screen bg-background px-6 py-8">
         <div className="mx-auto max-w-3xl">
           <EmptyState
-            title="Cotacao nao configurada"
-            description="Peça para um administrador associar seu cadastro a um tenant antes de consultar valores."
+            title="Cotacao sem dados"
+            description="Nao encontramos a tabela de precos da YLEON. Peca para um administrador importar ou revisar os dados de cotacao."
           />
         </div>
       </main>

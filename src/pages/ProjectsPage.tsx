@@ -7,13 +7,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { toast } from '@/hooks/use-toast';
-import { buildNewProjectPayload } from '@/lib/projectDefaults';
+import { buildNewProjectPayload, projectMutationErrorMessage } from '@/lib/projectDefaults';
 import { checkClientRateLimit, rateLimitMessage } from '@/lib/rateLimit';
 import { firstZodMessage, projectDetailsSchema, projectItemUpdateSchema, projectNameSchema, sanitizePlainText, uploadFileSchema } from '@/lib/validation';
 import logoYleon from '@/assets/logo-yleon.png';
-import pdfCover1 from '@/assets/pdf-cover-1.png';
-import pdfCover2 from '@/assets/pdf-cover-2.png';
-import pdfCover3 from '@/assets/pdf-cover-3.png';
 
 interface Project {
   id: string;
@@ -97,7 +94,7 @@ interface CrmCustomerOption {
 }
 
 export default function ProjectsPage() {
-  const { user, isAdmin, isSeller, isStaff } = useAuth();
+  const { user, isAdmin, isManager, isCeo, isSeller, isStaff } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [projectItems, setProjectItems] = useState<ProjectItemWithDetails[]>([]);
@@ -106,6 +103,7 @@ export default function ProjectsPage() {
   const [newClientName, setNewClientName] = useState('');
   const [newInitialNotes, setNewInitialNotes] = useState('');
   const [newArchitectId, setNewArchitectId] = useState('');
+  const [newSellerId, setNewSellerId] = useState('');
   const [projectFilters, setProjectFilters] = useState({
     architect: '',
     client: '',
@@ -115,6 +113,7 @@ export default function ProjectsPage() {
   });
   const [currentProfile, setCurrentProfile] = useState<ProfileOption | null>(null);
   const [architectOptions, setArchitectOptions] = useState<ProfileOption[]>([]);
+  const [sellerOptions, setSellerOptions] = useState<ProfileOption[]>([]);
   const [customerOptions, setCustomerOptions] = useState<CrmCustomerOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [creatingProject, setCreatingProject] = useState(false);
@@ -149,6 +148,7 @@ export default function ProjectsPage() {
   const [dragOverEnv, setDragOverEnv] = useState<string | null>(null);
   const newProjectInputRef = useRef<HTMLInputElement>(null);
   const envImageInputRef = useRef<HTMLInputElement>(null);
+  const canAssignSeller = isAdmin || isManager || isCeo;
 
   useEffect(() => {
     if (!user) return;
@@ -182,18 +182,21 @@ export default function ProjectsPage() {
     if (!user) return;
 
     const fetchCommercialContext = async () => {
-      const [{ data: profile }, { data: profiles }, { data: customers }] = await Promise.all([
+      const [{ data: profile }, { data: profiles }, { data: sellerRoles }, { data: customers }] = await Promise.all([
         supabase.from('profiles').select('user_id, full_name, seller_id, phone, email').eq('user_id', user.id).maybeSingle(),
         supabase.from('profiles').select('user_id, full_name, seller_id, phone, email').order('full_name'),
+        (supabase as any).from('user_roles').select('user_id, role').eq('role', 'vendedor'),
         (supabase as any).from('crm_customers').select('id, name, seller_user_id, architect_profile_id, architect_name').order('created_at', { ascending: false }),
       ]);
       setCurrentProfile((profile as ProfileOption | null) || null);
       const allProfiles = ((profiles || []) as ProfileOption[]).filter(profile => Boolean(profile.full_name));
+      const sellerIds = new Set(((sellerRoles || []) as { user_id: string; role: string }[]).map(role => role.user_id));
       setArchitectOptions(
         isSeller
           ? allProfiles.filter(profile => profile.seller_id === user.id)
           : allProfiles.filter(profile => profile.user_id !== user.id)
       );
+      setSellerOptions(allProfiles.filter(profile => sellerIds.has(profile.user_id)));
       setCustomerOptions((customers || []) as CrmCustomerOption[]);
     };
 
@@ -284,7 +287,9 @@ export default function ProjectsPage() {
       const selectedCustomer = customerOptions.find(customer => customer.name.toLowerCase().trim() === clientName.toLowerCase().trim()) || null;
       const sellerUserId = isSeller
         ? user.id
-        : currentProfile?.seller_id || selectedCustomer?.seller_user_id || null;
+        : canAssignSeller
+          ? newSellerId || selectedCustomer?.seller_user_id || null
+          : currentProfile?.seller_id || selectedCustomer?.seller_user_id || null;
       const architectProfileId = isSeller
         ? selectedArchitect?.user_id || selectedCustomer?.architect_profile_id || null
         : user.id;
@@ -312,13 +317,15 @@ export default function ProjectsPage() {
       setNewClientName('');
       setNewInitialNotes('');
       setNewArchitectId('');
+      setNewSellerId('');
       if (newProjectInputRef.current) newProjectInputRef.current.value = '';
       window.dispatchEvent(new CustomEvent('architect-onboarding:project-created', { detail: { projectId: data.id } }));
       toast({ title: 'Projeto criado', description: parsed.data });
     } catch (err: any) {
+      if (import.meta.env.DEV) console.error('Project creation error:', err);
       toast({
         title: 'Erro ao criar projeto',
-        description: 'Nao foi possivel criar o projeto. Confira os dados e suas permissoes.',
+        description: projectMutationErrorMessage(err),
         variant: 'destructive',
       });
     } finally {
@@ -711,19 +718,14 @@ export default function ProjectsPage() {
       };
 
       const logoData = await loadImage(logoYleon, 'PNG');
-      const logoWhiteData = logoData;
-      const cover1Data = await loadImage(pdfCover1, 'PNG');
-      const cover2Data = await loadImage(pdfCover2, 'PNG');
-      const cover3Data = await loadImage(pdfCover3, 'PNG');
-
-      // Palette per spec
-      const taupe = [118, 108, 99] as const;       // #766C63
-      const textMain = [77, 73, 54] as const;       // #4D4936
-      const goldSoft = [216, 208, 165] as const;    // #D8D0A5
-      const gold = [180, 155, 110] as const;
-      const charcoal = [45, 42, 38] as const;
-      const warmGray = [140, 135, 125] as const;
-      const lightBg = [250, 248, 245] as const;
+      const black = [10, 10, 9] as const;
+      const offBlack = [24, 24, 22] as const;
+      const white = [255, 255, 255] as const;
+      const paper = [248, 247, 244] as const;
+      const textMain = [31, 31, 28] as const;
+      const goldSoft = [226, 203, 142] as const;
+      const gold = [185, 149, 72] as const;
+      const muted = [132, 128, 118] as const;
 
       type ImgData = { data: string; w: number; h: number } | null;
       const preloadedImages = await Promise.all(
@@ -751,8 +753,8 @@ export default function ProjectsPage() {
       );
 
       const environments = Object.keys(groupedItems);
-      // total pages = 3 covers + envs(opt) + items
-      let totalPages = 3;
+      // total pages = 1 YLEON cover + envs(opt) + items
+      let totalPages = 1;
       for (const env of environments) {
         if (envImageMap.has(env)) totalPages++;
         totalPages += groupedItems[env].length;
@@ -761,7 +763,7 @@ export default function ProjectsPage() {
       const drawHeader = (pageNum: number) => {
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(6);
-        doc.setTextColor(...warmGray);
+        doc.setTextColor(...muted);
         doc.text(`${pageNum} / ${totalPages}`, pageW - 12, 8, { align: 'right' });
       };
 
@@ -769,116 +771,91 @@ export default function ProjectsPage() {
         const footerY = pageH - 6;
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(5.5);
-        doc.setTextColor(...warmGray);
+        doc.setTextColor(...muted);
         doc.text('YLEON', 15, footerY);
       };
 
-      // ===== SLIDE 1 — Logo cover =====
-      if (cover1Data) {
-        const fit = coverImage(cover1Data.w, cover1Data.h, pageW, pageH);
-        doc.addImage(cover1Data.data, 'PNG', fit.offsetX, fit.offsetY, fit.w, fit.h, undefined, 'FAST');
-      } else {
-        doc.setFillColor(...taupe);
-        doc.rect(0, 0, pageW, pageH, 'F');
-      }
-
-      // ===== SLIDE 2 — About =====
-      doc.addPage();
-      if (cover2Data) {
-        const fit = coverImage(cover2Data.w, cover2Data.h, pageW, pageH);
-        doc.addImage(cover2Data.data, 'PNG', fit.offsetX, fit.offsetY, fit.w, fit.h, undefined, 'FAST');
-      } else {
-        doc.setFillColor(...taupe);
-        doc.rect(0, 0, pageW, pageH, 'F');
-      }
-
-      // ===== SLIDE 3 — Project info (cliente / arquiteto / consultor) =====
-      doc.addPage();
-      doc.setFillColor(...lightBg);
+      // ===== COVER - YLEON project presentation =====
+      const rightPanelW = pageW * 0.16;
+      const rightPanelX = pageW - rightPanelW;
+      const coverPadX = 23;
+      doc.setFillColor(...black);
       doc.rect(0, 0, pageW, pageH, 'F');
+      doc.setFillColor(...offBlack);
+      doc.rect(0, 0, pageW, pageH, 'F');
+      doc.setFillColor(...paper);
+      doc.rect(rightPanelX, 0, rightPanelW, pageH, 'F');
 
-      const panelW = 108;
-      doc.setFillColor(...taupe);
-      doc.rect(0, 0, panelW, pageH, 'F');
-      doc.setDrawColor(...goldSoft);
-      doc.setLineWidth(0.5);
-      doc.line(panelW, 18, panelW, pageH - 18);
+      doc.setDrawColor(...gold);
+      doc.setLineWidth(0.65);
+      doc.line(coverPadX, 22, coverPadX + 60, 22);
+      doc.line(rightPanelX, 20, rightPanelX, pageH - 20);
 
-      const leftPad = 18;
-      if (logoWhiteData) {
-        const lh = fitImage(logoWhiteData.w, logoWhiteData.h, 62, 24);
-        doc.addImage(logoWhiteData.data, 'PNG', leftPad + lh.offsetX, 22 + lh.offsetY, lh.w, lh.h);
+      if (logoData) {
+        doc.setFillColor(...paper);
+        doc.rect(coverPadX, 34, 83.5, 32.5, 'F');
+        doc.setDrawColor(...gold);
+        doc.setLineWidth(0.35);
+        doc.rect(coverPadX, 34, 83.5, 32.5);
+        doc.rect(coverPadX + 1.4, 35.4, 80.7, 29.7);
+        const logoFit = fitImage(logoData.w, logoData.h, 64, 24);
+        doc.addImage(logoData.data, 'PNG', coverPadX + 9.75 + logoFit.offsetX, 38.25 + logoFit.offsetY, logoFit.w, logoFit.h);
+      } else {
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(22);
+        doc.setTextColor(...goldSoft);
+        doc.text('YLEON', coverPadX, 58);
       }
 
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(7);
-      doc.setTextColor(230, 225, 215);
-      doc.text('APRESENTACAO DO PROJETO', leftPad, 64);
-
-      doc.setDrawColor(230, 225, 215);
-      doc.setLineWidth(0.35);
-      doc.line(leftPad, 72, leftPad + 30, 72);
+      doc.setTextColor(...goldSoft);
+      doc.text('APRESENTACAO DO PROJETO', coverPadX, 83);
 
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(17);
-      doc.setTextColor(255, 255, 255);
-      const projectNameLines = doc.splitTextToSize(selectedProject.name.toUpperCase(), panelW - leftPad * 2);
-      doc.text(projectNameLines.slice(0, 4), leftPad, 90);
+      doc.setFontSize(23);
+      doc.setTextColor(...white);
+      const coverTitleLines = doc.splitTextToSize(selectedProject.name.toUpperCase(), 126);
+      doc.text(coverTitleLines.slice(0, 4), coverPadX, 99);
 
-      if (cover3Data) {
-        const imageBoxW = pageW * 0.5;
-        const imageBoxH = pageH * 0.5;
-        const imageBoxX = pageW - imageBoxW - 18;
-        const imageBoxY = 24;
-        const fit = fitImage(cover3Data.w, cover3Data.h, imageBoxW, imageBoxH);
-        doc.setFillColor(255, 255, 255);
-        doc.rect(imageBoxX - 4, imageBoxY - 4, imageBoxW + 8, imageBoxH + 8, 'F');
-        doc.addImage(cover3Data.data, 'PNG', imageBoxX + fit.offsetX, imageBoxY + fit.offsetY, fit.w, fit.h, undefined, 'FAST');
-      }
-
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(8);
-      doc.setTextColor(...textMain);
-      doc.text('Curadoria de pecas, acabamentos e valores para o projeto.', panelW + 20, 150);
-      doc.setDrawColor(...goldSoft);
-      doc.setLineWidth(0.45);
-      doc.line(panelW + 20, 158, pageW - 22, 158);
-
-      let s3y = 128;
-      const s3Info: [string, string | null][] = [
+      let coverInfoY = 139;
+      const coverInfo: [string, string | null | undefined][] = [
         ['Cliente', selectedProject.client_name],
         ['Arquiteto', selectedProject.architect_name],
-        ['Consultora', selectedProject.consultant_name],
+        ['Consultor', selectedProject.consultant_name],
       ];
-      for (const [label, value] of s3Info) {
+      for (const [label, value] of coverInfo) {
         if (!value) continue;
         doc.setFont('helvetica', 'normal');
-        doc.setFontSize(7);
-        doc.setTextColor(210, 204, 194);
-        doc.text(label.toUpperCase(), leftPad, s3y);
+        doc.setFontSize(6.5);
+        doc.setTextColor(...goldSoft);
+        doc.text(label.toUpperCase(), coverPadX, coverInfoY);
 
         doc.setFont('helvetica', 'normal');
-        doc.setFontSize(10);
-        doc.setTextColor(255, 255, 255);
-        const valLines = doc.splitTextToSize(value, panelW - leftPad * 2);
-        doc.text(valLines.slice(0, 3), leftPad, s3y + 7);
-        s3y += 20 + Math.min(valLines.length, 3) * 5;
+        doc.setFontSize(9.5);
+        doc.setTextColor(...white);
+        doc.text(doc.splitTextToSize(value, 120).slice(0, 2), coverPadX, coverInfoY + 6);
+        coverInfoY += 19;
       }
 
-      const dateStr = new Date().toLocaleDateString('pt-BR');
       doc.setFont('helvetica', 'normal');
-      doc.setFontSize(8);
-      doc.setTextColor(230, 225, 215);
-      doc.text(`Data da proposta: ${dateStr}`, leftPad, pageH - 24);
+      doc.setFontSize(7);
+      doc.setTextColor(...goldSoft);
+      doc.text(`Data da proposta: ${new Date().toLocaleDateString('pt-BR')}`, coverPadX, 178);
+      doc.text('Colecao de pecas, acabamentos e valores para o projeto.', coverPadX, 188);
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(36);
+      doc.setTextColor(...gold);
+      doc.text('YLEON', rightPanelX + rightPanelW / 2 + 2, pageH / 2 + 31, { angle: 90, align: 'center' });
 
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(6);
-      doc.setTextColor(210, 204, 194);
-      doc.text('YLEON', leftPad, pageH - 15);
-
+      doc.setTextColor(...muted);
+      doc.text(`1 / ${totalPages}`, pageW - 14, 195, { align: 'right' });
 
       // ===== PRODUCT PAGES BY ENVIRONMENT =====
-      let currentPage = 3; // 3 cover slides already drawn
+      let currentPage = 1;
 
       for (const env of environments) {
         const items = groupedItems[env];
@@ -917,8 +894,8 @@ export default function ProjectsPage() {
           const colCX = colLW;
           const colRX = colLW + colCW;
 
-          // === LEFT COLUMN (taupe) ===
-          doc.setFillColor(...taupe);
+          // === LEFT COLUMN (black) ===
+          doc.setFillColor(...offBlack);
           doc.rect(colLX, 0, colLW, pageH, 'F');
 
           // Title (uppercase) at top
@@ -929,7 +906,7 @@ export default function ProjectsPage() {
           const titleLines = doc.splitTextToSize((item.product?.name || '').toUpperCase(), colLW - titlePad * 2);
           doc.text(titleLines, colLX + titlePad, 22);
 
-          // Main product image stays over the taupe band.
+          // Main product image stays over the offBlack band.
           const detailImg = cachedImg?.productImg || null;
           if (detailImg) {
             const dBoxW = colLW - 24;
@@ -1019,7 +996,7 @@ export default function ProjectsPage() {
           if (item.product?.category) {
             doc.setFont('helvetica', 'normal');
             doc.setFontSize(7);
-            doc.setTextColor(...warmGray);
+            doc.setTextColor(...muted);
             doc.text(item.product.category.toUpperCase(), colRX + rPad, ry);
             ry += 8;
           }
@@ -1075,17 +1052,17 @@ export default function ProjectsPage() {
             if (item.price != null) {
               doc.setFont('helvetica', 'normal');
               doc.setFontSize(7);
-              doc.setTextColor(...warmGray);
+              doc.setTextColor(...muted);
               doc.text('PREÇO ORIGINAL', colRX + rPad, ry);
               ry += 5;
               doc.setFont('helvetica', 'normal');
               doc.setFontSize(11);
-              doc.setTextColor(...warmGray);
+              doc.setTextColor(...muted);
               const origText = formatCurrency(item.price);
               doc.text(origText, colRX + rPad, ry);
               if (item.discount_price != null) {
                 const tw = doc.getTextWidth(origText);
-                doc.setDrawColor(...warmGray);
+                doc.setDrawColor(...muted);
                 doc.setLineWidth(0.3);
                 doc.line(colRX + rPad, ry - 1.2, colRX + rPad + tw, ry - 1.2);
               }
@@ -1107,7 +1084,7 @@ export default function ProjectsPage() {
 
             doc.setFont('helvetica', 'normal');
             doc.setFontSize(7);
-            doc.setTextColor(...warmGray);
+            doc.setTextColor(...muted);
             doc.text(`QUANTIDADE: ${qty}`, colRX + rPad, ry);
             ry += 5;
 
@@ -1126,7 +1103,7 @@ export default function ProjectsPage() {
           // Page number on right column bottom
           doc.setFont('helvetica', 'normal');
           doc.setFontSize(6);
-          doc.setTextColor(...warmGray);
+          doc.setTextColor(...muted);
           doc.text(`${currentPage} / ${totalPages}`, colRX + colRW - rPad, pageH - 8, { align: 'right' });
         }
       }
@@ -1204,6 +1181,19 @@ export default function ProjectsPage() {
           <datalist id="project-client-options">
             {customerOptions.map(customer => <option key={customer.id} value={customer.name} />)}
           </datalist>
+          {canAssignSeller && (
+            <select
+              value={newSellerId}
+              onChange={event => setNewSellerId(event.target.value)}
+              className="h-12 rounded-lg border border-border bg-background px-3 text-sm text-foreground md:col-span-2"
+              disabled={creatingProject}
+            >
+              <option value="">Vendedor responsavel (opcional)</option>
+              {sellerOptions.map(seller => (
+                <option key={seller.user_id} value={seller.user_id}>{seller.full_name}</option>
+              ))}
+            </select>
+          )}
           {isSeller && (
             <select
               value={newArchitectId}
@@ -1240,7 +1230,7 @@ export default function ProjectsPage() {
             <option value="">Status</option>
             <option value="novo_atendimento">Novo atendimento</option>
             <option value="briefing_visita">Briefing / visita</option>
-            <option value="curadoria_produtos">Curadoria</option>
+            <option value="curadoria_produtos">Coleção</option>
             <option value="proposta_orcamento">Proposta</option>
             <option value="followup_negociacao">Negociacao</option>
             <option value="pedido_fechado">Pedido fechado</option>

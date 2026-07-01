@@ -170,7 +170,7 @@ const BioCard = ({ href, delay = 0, icon, avatar, children }: BioCardProps) => (
 // ─── Typewriter ─────────────────────────────────────────────
 const TYPE_LINES = [
   { text: "Mobiliário Brasileiro Contemporâneo", className: "text-sm sm:text-base md:text-lg font-light tracking-[0.15em] uppercase text-[#e9d9b8]" },
-  { text: "Curadoria de peças icônicas que refletem o melhor do design.", className: "text-xs sm:text-sm text-[#e9d9b8]/70 font-light" },
+  { text: "Coleção de peças icônicas que refletem o melhor do design.", className: "text-xs sm:text-sm text-[#e9d9b8]/70 font-light" },
   { text: "Visite nosso Showroom", className: "text-xs sm:text-sm italic text-[#e9d9b8]/90" },
 ];
 

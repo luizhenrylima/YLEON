@@ -53,7 +53,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
 import { checkClientRateLimit, rateLimitMessage } from "@/lib/rateLimit";
 import { agendaEventSchema, firstZodMessage, sanitizePlainText } from "@/lib/validation";
-import { buildNewProjectPayload } from "@/lib/projectDefaults";
+import { buildNewProjectPayload, projectMutationErrorMessage } from "@/lib/projectDefaults";
 
 type CrmStatus =
   | "novo_atendimento"
@@ -305,7 +305,7 @@ interface SellerPerformanceRow {
 const commercialStatuses: Array<{ key: CrmStatus; label: string; tone: string }> = [
   { key: "novo_atendimento", label: "Novo atendimento", tone: "bg-slate-100 text-slate-700" },
   { key: "briefing_visita", label: "Briefing / Visita a loja", tone: "bg-zinc-100 text-zinc-700" },
-  { key: "curadoria_produtos", label: "Curadoria de produtos", tone: "bg-stone-100 text-stone-700" },
+  { key: "curadoria_produtos", label: "Coleção de produtos", tone: "bg-stone-100 text-stone-700" },
   { key: "proposta_orcamento", label: "Proposta / Orcamento", tone: "bg-amber-50 text-amber-700" },
   { key: "followup_negociacao", label: "Follow-up / Negociacao", tone: "bg-orange-50 text-orange-700" },
   { key: "pedido_fechado", label: "Pedido fechado", tone: "bg-emerald-50 text-emerald-700" },
@@ -1590,7 +1590,8 @@ export default function OperationsPage() {
       .select(CRM_PROJECT_SELECT)
       .single();
     if (error) {
-      toast({ title: "Erro ao converter", description: "Nao foi possivel criar o projeto.", variant: "destructive" });
+      if (import.meta.env.DEV) console.error("Lead conversion project creation error:", error);
+      toast({ title: "Erro ao converter", description: projectMutationErrorMessage(error), variant: "destructive" });
       return;
     }
 
@@ -1652,23 +1653,21 @@ export default function OperationsPage() {
       return;
     }
 
-    const { error } = canManageOrders
-      ? await (supabase as any).from("crm_customers").delete().eq("id", customer.id)
-      : await (supabase as any)
-        .from("crm_customers")
-        .update({
-          status: "arquivado",
-          archived_at: new Date().toISOString(),
-          archived_by: user?.id || null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", customer.id);
+    const { error } = await (supabase as any)
+      .from("crm_customers")
+      .update({
+        status: "arquivado",
+        archived_at: new Date().toISOString(),
+        archived_by: user?.id || null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", customer.id);
     if (error) {
       toast({ title: "Erro ao remover cliente", description: "Se houver historico, arquive o cliente.", variant: "destructive" });
       return;
     }
     setCustomers(current => current.filter(item => item.id !== customer.id));
-    toast({ title: canManageOrders ? "Cliente excluido" : "Cliente arquivado" });
+    toast({ title: "Cliente arquivado" });
   };
 
   const createProjectForArchitect = async (architect: { userId?: string | null; name: string }) => {
@@ -1689,7 +1688,8 @@ export default function OperationsPage() {
       .select(CRM_PROJECT_SELECT)
       .single();
     if (error) {
-      toast({ title: "Erro ao criar projeto", description: "Confira os dados e suas permissoes.", variant: "destructive" });
+      if (import.meta.env.DEV) console.error("Architect project creation error:", error);
+      toast({ title: "Erro ao criar projeto", description: projectMutationErrorMessage(error), variant: "destructive" });
       return;
     }
     setProjects(current => [{
@@ -2605,7 +2605,7 @@ function ExecutivePipeline({ projectsByStatus }: { projectsByStatus: Record<CrmS
   const steps = [
     { label: "Atendimento", statuses: ["novo_atendimento"] as CrmStatus[] },
     { label: "Briefing / Visita", statuses: ["briefing_visita"] as CrmStatus[] },
-    { label: "Curadoria", statuses: ["curadoria_produtos"] as CrmStatus[] },
+    { label: "Coleção", statuses: ["curadoria_produtos"] as CrmStatus[] },
     { label: "Proposta", statuses: ["proposta_orcamento"] as CrmStatus[] },
     { label: "Negociação", statuses: ["followup_negociacao"] as CrmStatus[] },
     { label: "Fechado", statuses: ["pedido_fechado"] as CrmStatus[] },
@@ -3080,7 +3080,7 @@ function AdminAgendaPreview({
 function PipelineOverview({ projectsByStatus }: { projectsByStatus: Record<CrmStatus, CrmProject[]> }) {
   const pipeline = [
     { label: "Atendimento", statuses: ["novo_atendimento", "briefing_visita"] as CrmStatus[], icon: Users },
-    { label: "Curadoria", statuses: ["curadoria_produtos"] as CrmStatus[], icon: FileText },
+    { label: "Coleção", statuses: ["curadoria_produtos"] as CrmStatus[], icon: FileText },
     { label: "Proposta", statuses: ["proposta_orcamento"] as CrmStatus[], icon: ClipboardList },
     { label: "Negociacao", statuses: ["followup_negociacao"] as CrmStatus[], icon: TrendingUp },
     { label: "Fechados", statuses: ["pedido_fechado"] as CrmStatus[], icon: ShieldCheck },
@@ -3780,7 +3780,7 @@ function TechnicalOrdersSection({
                   )}
                 </div>
                 <div className="grid gap-2 text-sm">
-                  <ChecklistRow done={(project.itemCount || 0) > 0} label="Curadoria com produtos do catalogo" />
+                  <ChecklistRow done={(project.itemCount || 0) > 0} label="Coleção com produtos do catalogo" />
                   <ChecklistRow done={["em_montagem", "enviado", "aprovado"].includes(project.crm_quote_status || "") || projectQuotes.length > 0} label="Orcamento preparado/enviado" />
                   <ChecklistRow done={hasOperationalOrder(project) || projectOrders.length > 0} label="Pedido operacional criado" />
                   <ChecklistRow done={isOrderClosed} label="Pedido fechado no comercial" />
@@ -4437,7 +4437,7 @@ function ArchitectsSection({
       <Card className="rounded-lg">
         <CardHeader>
           <CardTitle className="text-base">Historico por arquiteto</CardTitle>
-          <p className="text-sm text-muted-foreground">Projetos em andamento, clientes vinculados, aniversarios e potenciais de relacionamento.</p>
+          <p className="text-sm text-muted-foreground">Projetos em andamento, clientes vinculados, aniversarios e potenciais comerciais.</p>
         </CardHeader>
       </Card>
       <div className="grid gap-4 lg:grid-cols-2">
@@ -4469,7 +4469,7 @@ function ArchitectsSection({
                   <Info label="Volume" value={formatCurrency(row.value)} />
                   <Info label="Telefone" value={row.phone || "-"} />
                   <Info label="E-mail" value={row.email || "-"} />
-                  <Info label="Relacionamento" value={row.status} />
+                  <Info label="Status" value={row.status} />
                 </div>
                 <div className="space-y-2">
                   <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Em andamento</p>

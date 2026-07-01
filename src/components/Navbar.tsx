@@ -6,7 +6,6 @@ import {
   BarChart3,
   BriefcaseBusiness,
   FolderOpen,
-  Handshake,
   Heart,
   LogOut,
   Maximize2,
@@ -34,7 +33,7 @@ const isTabletLikeDevice = () => {
 };
 
 export default function Navbar() {
-  const { user, isAdmin, isManager, isSeller, isStaff, signOut } = useAuth();
+  const { user, isAdmin, isManager, isSeller, isFinance, isStaff, signOut } = useAuth();
   const navigate = useNavigate();
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [fullscreenSupported, setFullscreenSupported] = useState(false);
@@ -120,10 +119,11 @@ export default function Navbar() {
 
   const navTextClass = "shrink-0 text-[10px] uppercase tracking-[0.15em] transition-colors link-underline";
   const navIconTextClass = `flex shrink-0 items-center gap-1.5 ${navTextClass}`;
+  const canAccessQuote = isAdmin || isManager || isSeller || isFinance;
 
   return (
     <>
-      <nav className="app-navbar flex items-center justify-between gap-3 border-b border-[#d7b65d]/25 bg-[#10140d]/92 text-[#f4ecd7] shadow-[0_12px_40px_-28px_rgba(0,0,0,0.75)] backdrop-blur-lg transition-all duration-300 [&_a]:text-[#f4ecd7]/72 [&_a:hover]:text-[#f4ecd7] [&_button]:text-[#f4ecd7]/72 [&_button:hover]:text-[#f4ecd7]">
+      <nav className="app-navbar flex items-center justify-between gap-3 border-b border-white/12 bg-[rgba(60,60,60,0.70)] text-[#fff7ea] shadow-[0_12px_40px_-28px_rgba(0,0,0,0.75)] backdrop-blur-lg transition-all duration-300 [&_a]:text-[#fff7ea]/76 [&_a:hover]:text-[#ff8a4c] [&_button]:text-[#fff7ea]/76 [&_button:hover]:text-[#fff7ea]">
         <Link to="/" className="flex h-14 shrink-0 items-center overflow-visible group md:h-16">
           <img
             src={logoYleon}
@@ -136,16 +136,8 @@ export default function Navbar() {
           <Link to="/catalog" className={navTextClass}>
             Cat&aacute;logo
           </Link>
-          <Link to="/curadoria" className={navTextClass}>
-            Curadoria
-          </Link>
-          <Link
-            to="/relacionamento"
-            className="hidden shrink-0 items-center gap-1.5 text-[10px] uppercase tracking-[0.15em] transition-colors link-underline md:flex"
-            title="Relacionamento"
-          >
-            <Handshake size={14} />
-            Relacionamento
+          <Link to="/colecao" className={navTextClass}>
+            Cole&ccedil;&atilde;o
           </Link>
           <Link
             to="/projects"
@@ -156,26 +148,26 @@ export default function Navbar() {
             Projetos
           </Link>
 
-          {isStaff && (
+          {canAccessQuote && (
             <Link to="/consultor-valores" className={navIconTextClass} title="Cotacao">
               <BadgeDollarSign size={14} />
               Cota&ccedil;&atilde;o
             </Link>
           )}
 
-          {isStaff && (
+          {(isAdmin || isManager || isSeller) && (
             <Link to={isSeller ? "/rotina" : "/gestao"} className={navIconTextClass} title={isSeller ? "Rotina" : "Gestao"}>
               <BriefcaseBusiness size={14} />
               {isSeller ? "Rotina" : <>Gest&atilde;o</>}
             </Link>
           )}
 
-          <Link to="/favorites" className="shrink-0 text-[#f4ecd7]/70 transition-colors duration-200 hover:text-accent" title="Favoritos">
+          <Link to="/favorites" className="shrink-0 text-[#f5ead9]/70 transition-colors duration-200 hover:text-accent" title="Favoritos">
             <Heart size={18} />
           </Link>
 
           {(isAdmin || isManager) && (
-            <Link to="/admin/analytics" className={navIconTextClass} title="Performance & Curadoria">
+            <Link to="/admin/analytics" className={navIconTextClass} title="Performance & Colecao">
               <BarChart3 size={14} />
               Performance
             </Link>
@@ -189,14 +181,14 @@ export default function Navbar() {
           )}
 
           <div className="flex shrink-0 items-center gap-2 border-l border-white/15 pl-3">
-            <div className="flex items-center gap-1.5 text-[10px] text-[#f4ecd7]/58">
+            <div className="flex items-center gap-1.5 text-[10px] text-[#f5ead9]/58">
               <User size={14} />
               <span className="hidden xl:inline">{user?.email?.split("@")[0]}</span>
             </div>
             <button
               type="button"
               onClick={handleSignOut}
-              className="text-[#f4ecd7]/58 transition-colors hover:text-[#f4ecd7]"
+              className="text-[#f5ead9]/58 transition-colors hover:text-[#f5ead9]"
               title="Sair"
               aria-label="Sair"
             >

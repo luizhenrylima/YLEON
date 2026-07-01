@@ -31,7 +31,7 @@ const TermsOfUsePage = () => {
           <section>
             <h2 className="text-lg font-medium text-foreground mb-3">2. Descrição do Serviço</h2>
             <p>
-              A YLEON é uma plataforma digital de curadoria de produtos para profissionais de
+              A YLEON é uma plataforma digital de coleção de produtos para profissionais de
               arquitetura e design de interiores. Oferecemos catálogo de produtos, ferramentas de
               comparação, gestão de projetos e compartilhamento com clientes.
             </p>
@@ -104,7 +104,7 @@ const TermsOfUsePage = () => {
           <section>
             <h2 className="text-lg font-medium text-foreground mb-3">9. Limitação de Responsabilidade</h2>
             <p>
-              A YLEON atua como plataforma de curadoria e não realiza vendas diretas. Não nos
+              A YLEON atua como plataforma de coleção e não realiza vendas diretas. Não nos
               responsabilizamos por negociações, transações ou acordos comerciais realizados entre
               usuários e marcas parceiras. As informações dos produtos são fornecidas pelas marcas
               e apresentadas como referência.

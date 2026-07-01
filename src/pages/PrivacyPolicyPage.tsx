@@ -53,7 +53,7 @@ export default function PrivacyPolicyPage() {
               <li>Autenticar e gerenciar sua conta na plataforma.</li>
               <li>Personalizar sua experiência com favoritos e projetos salvos.</li>
               <li>Permitir o compartilhamento de projetos com clientes via link seguro.</li>
-              <li>Gerar insights de curadoria para os vendedores parceiros (dados agregados e anonimizados).</li>
+              <li>Gerar insights de coleção para os vendedores parceiros (dados agregados e anonimizados).</li>
               <li>Melhorar a qualidade e o desempenho da plataforma.</li>
             </ul>
           </section>
@@ -67,7 +67,7 @@ export default function PrivacyPolicyPage() {
             </p>
             <ul className="list-disc pl-6 space-y-1.5 mt-3">
               <li><strong className="text-foreground">Projetos compartilhados:</strong> quando você gera um link de compartilhamento, os dados do projeto (produtos, acabamentos, imagens) ficam acessíveis via token seguro.</li>
-              <li><strong className="text-foreground">Dados agregados:</strong> informações estatísticas e anonimizadas podem ser utilizadas para análises de curadoria pelos vendedores parceiros.</li>
+              <li><strong className="text-foreground">Dados agregados:</strong> informações estatísticas e anonimizadas podem ser utilizadas para análises de coleção pelos vendedores parceiros.</li>
               <li><strong className="text-foreground">Obrigações legais:</strong> quando exigido por lei ou ordem judicial.</li>
             </ul>
           </section>

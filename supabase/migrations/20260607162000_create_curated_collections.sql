@@ -97,7 +97,7 @@ INSERT INTO public.curated_collections (title, description, display_order, is_ac
 VALUES
   ('Linha alto padrão', 'Uma seleção de peças com presença, acabamento superior e leitura sofisticada para projetos de maior valor percebido.', 0, true),
   ('Peças assinadas', 'Produtos com autoria e desenho marcante para composições que pedem identidade.', 1, true),
-  ('Design brasileiro', 'Curadoria de mobiliário com linguagem nacional, materiais quentes e proporções contemporâneas.', 2, true),
+  ('Design brasileiro', 'Coleção de mobiliário com linguagem nacional, materiais quentes e proporções contemporâneas.', 2, true),
   ('Suíte master premium', 'Camas, apoios, poltronas e complementos para suítes de alto padrão.', 3, true),
   ('Produtos para pronta entrega', 'Sugestões para projetos com prazo curto e tomada de decisão objetiva.', 4, true)
 ON CONFLICT DO NOTHING;

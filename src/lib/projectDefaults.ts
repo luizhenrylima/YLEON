@@ -29,3 +29,34 @@ export function buildNewProjectPayload(userId: string, name: string, options: Ne
     crm_risk_level: 'baixo',
   };
 }
+
+export function projectMutationErrorMessage(error: unknown) {
+  const message = error && typeof error === 'object' && 'message' in error
+    ? String((error as { message?: unknown }).message || '')
+    : String(error || '');
+  const details = error && typeof error === 'object' && 'details' in error
+    ? String((error as { details?: unknown }).details || '')
+    : '';
+  const code = error && typeof error === 'object' && 'code' in error
+    ? String((error as { code?: unknown }).code || '')
+    : '';
+  const text = `${code} ${message} ${details}`.toLowerCase();
+
+  if (text.includes('nome do cliente') || text.includes('client_name') || text.includes('cliente')) {
+    return 'Cliente final e obrigatorio para criar o projeto.';
+  }
+  if (text.includes('row-level security') || code === '42501') {
+    return 'Erro de permissao no Supabase/RLS ao criar projeto. Verifique se o vendedor, arquiteto e cliente estao dentro das regras do seu perfil.';
+  }
+  if (text.includes('foreign key') || code === '23503') {
+    return 'Nao foi possivel salvar o projeto porque existe um vinculo invalido com cliente, arquiteto ou vendedor.';
+  }
+  if (text.includes('rate') || text.includes('muitas tentativas') || code === 'p0001') {
+    return 'Muitas tentativas em pouco tempo. Aguarde alguns minutos e tente novamente.';
+  }
+  if (text.includes('not-null') || text.includes('null value') || code === '23502') {
+    return 'Nao foi possivel salvar o projeto porque faltam campos obrigatorios.';
+  }
+
+  return message || 'Nao foi possivel criar o projeto. Confira os dados e tente novamente.';
+}

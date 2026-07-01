@@ -13,7 +13,7 @@ import WelcomeModal from "@/components/WelcomeModal";
 import AuthPage from "@/pages/AuthPage";
 import LandingPage from "@/pages/LandingPage";
 import CatalogPage from "@/pages/CatalogPage";
-import CuradoriaPage from "@/pages/CuradoriaPage";
+import ColecaoPage from "@/pages/ColecaoPage";
 import BrandCatalogPage from "@/pages/BrandCatalogPage";
 import BrandFinishesPage from "@/pages/BrandFinishesPage";
 import ProductDetailPage from "@/pages/ProductDetailPage";
@@ -30,7 +30,6 @@ import BioInstaPage from "@/pages/BioInstaPage";
 import MarketingPage from "@/pages/MarketingPage";
 import PriceConsultantPage from "@/pages/PriceConsultantPage";
 import OperationsPage from "@/pages/OperationsPage";
-import RelationshipPage from "@/pages/RelationshipPage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -105,8 +104,8 @@ function ProtectedRoute({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
-function RoleRoute({ children, area }: { children: ReactNode; area: "admin" | "management" | "seller" | "staff" }) {
-  const { user, loading, isAdmin, isManager, isSeller, isStaff } = useAuth();
+function RoleRoute({ children, area }: { children: ReactNode; area: "admin" | "management" | "seller" | "staff" | "quote" }) {
+  const { user, loading, isAdmin, isManager, isSeller, isFinance, isStaff } = useAuth();
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -130,6 +129,10 @@ function RoleRoute({ children, area }: { children: ReactNode; area: "admin" | "m
     if (isStaff) return <>{children}</>;
     return <Navigate to="/" replace />;
   }
+  if (area === "quote") {
+    if (isAdmin || isManager || isSeller || isFinance) return <>{children}</>;
+    return <Navigate to="/" replace />;
+  }
   if (isSeller) return <>{children}</>;
   if (isAdmin) return <Navigate to="/gestao" replace />;
   if (isManager) return <Navigate to="/gestao" replace />;
@@ -147,8 +150,8 @@ function AppRoutes() {
       <Route path="/auth" element={<AuthRoute />} />
       <Route path="/" element={<ProtectedRoute><Navbar /><LandingPage /></ProtectedRoute>} />
       <Route path="/catalog" element={<ProtectedRoute><Navbar /><CatalogPage /></ProtectedRoute>} />
-      <Route path="/curadoria" element={<ProtectedRoute><Navbar /><CuradoriaPage /></ProtectedRoute>} />
-      <Route path="/relacionamento" element={<ProtectedRoute><Navbar /><RelationshipPage /></ProtectedRoute>} />
+      <Route path="/colecao" element={<ProtectedRoute><Navbar /><ColecaoPage /></ProtectedRoute>} />
+      <Route path="/curadoria" element={<Navigate to="/colecao" replace />} />
       <Route path="/segments" element={<Navigate to="/catalog" replace />} />
       <Route path="/brands/:segment" element={<Navigate to="/catalog" replace />} />
       <Route path="/brand/:brandId" element={<ProtectedRoute><Navbar /><BrandCatalogPage /></ProtectedRoute>} />
@@ -156,7 +159,7 @@ function AppRoutes() {
       <Route path="/product/:productId" element={<ProtectedRoute><Navbar /><ProductDetailPage /></ProtectedRoute>} />
       <Route path="/favorites" element={<ProtectedRoute><Navbar /><FavoritesPage /></ProtectedRoute>} />
       <Route path="/projects" element={<ProtectedRoute><Navbar /><ProjectsPage /></ProtectedRoute>} />
-      <Route path="/consultor-valores" element={<RoleRoute area="staff"><Navbar /><PriceConsultantPage /></RoleRoute>} />
+      <Route path="/consultor-valores" element={<RoleRoute area="quote"><Navbar /><PriceConsultantPage /></RoleRoute>} />
       <Route path="/gestao/*" element={<RoleRoute area="management"><Navbar /><OperationsPage /></RoleRoute>} />
       <Route path="/rotina/*" element={<RoleRoute area="seller"><Navbar /><OperationsPage /></RoleRoute>} />
       <Route path="/admin" element={<RoleRoute area="admin"><Navbar /><AdminPage /></RoleRoute>} />

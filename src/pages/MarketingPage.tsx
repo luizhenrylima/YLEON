@@ -67,7 +67,7 @@ const MONTHLY_THEME: Record<number, { theme: string; focus: string; priority: st
   7: { theme: "Encerramento Casa Cor", focus: "Retrospectiva e brand love", priority: "MÉDIA-ALTA" },
   8: { theme: "Primavera + Semana do Design BR", focus: "Renovação dos ambientes", priority: "MÉDIA" },
   9: { theme: "Mês do Design + Prep Black Friday", focus: "Brand awareness", priority: "MÉDIA" },
-  10: { theme: "Black Friday + Preview Natal", focus: "Conversão e curadoria", priority: "ALTA" },
+  10: { theme: "Black Friday + Preview Natal", focus: "Conversão e coleção", priority: "ALTA" },
   11: { theme: "Natal + Dia do Arquiteto + Retrospectiva", focus: "Presentes + Brand love", priority: "ALTA" },
 };
 

@@ -25,7 +25,7 @@ interface ProductPair {
 }
 
 export default function AdminAnalyticsPage() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, isManager } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [productCounts, setProductCounts] = useState<ProductCount[]>([]);
@@ -34,12 +34,12 @@ export default function AdminAnalyticsPage() {
   const [totalItems, setTotalItems] = useState(0);
 
   useEffect(() => {
-    if (!isAdmin) {
+    if (!isAdmin && !isManager) {
       navigate('/');
       return;
     }
     loadAnalytics();
-  }, [isAdmin]);
+  }, [isAdmin, isManager]);
 
   const loadAnalytics = async () => {
     setLoading(true);
@@ -174,7 +174,7 @@ export default function AdminAnalyticsPage() {
             <ArrowLeft size={20} />
           </button>
           <div>
-            <h1 className="text-2xl font-light tracking-tight text-foreground">Performance & Curadoria</h1>
+            <h1 className="text-2xl font-light tracking-tight text-foreground">Performance & Coleção</h1>
             <p className="text-sm text-muted-foreground mt-1">Insights sobre especificações e combinações de produtos nos projetos.</p>
           </div>
         </div>
