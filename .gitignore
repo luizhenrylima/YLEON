@@ -28,3 +28,4 @@ supabase-transfer
 *.sw?
 
 .vercel
+supabase/.temp
