@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import logoYleon from '@/assets/logo-yleon.png';
 import loginPattern from '@/assets/login-yleon-pattern.png';
+import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from '@/integrations/supabase/client';
 import { checkClientRateLimit, rateLimitMessage } from '@/lib/rateLimit';
 import { authLoginSchema, firstZodMessage } from '@/lib/validation';
 
@@ -16,9 +17,8 @@ export default function AuthPage() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-    fetch(`${supabaseUrl}/auth/v1/health`, {
-      headers: { apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY },
+    fetch(`${SUPABASE_URL}/auth/v1/health`, {
+      headers: { apikey: SUPABASE_PUBLISHABLE_KEY },
     })
       .then((res) => setConnStatus(res.ok ? 'ok' : 'error'))
       .catch(() => setConnStatus('error'));

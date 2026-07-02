@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Trash2, X, ImageIcon, ChevronLeft, Pencil, Save, Check, Search, Star, Sparkles, Tag, Home, Users, UserCheck, UserX, Clock, Palette, Link, Loader2, Eye, EyeOff } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL, supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import type { Tables } from '@/integrations/supabase/types';
 import { uploadToStorage } from '@/lib/storage';
@@ -162,11 +162,11 @@ async function invokeAdminEdgeFunction<T>(functionName: string, body: Record<str
     throw new Error('Sessao expirada. Entre novamente para continuar.');
   }
 
-  const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${functionName}`, {
+  const response = await fetch(`${SUPABASE_URL}/functions/v1/${functionName}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+      apikey: SUPABASE_PUBLISHABLE_KEY,
       Authorization: `Bearer ${sessionData.session.access_token}`,
     },
     body: JSON.stringify(body),

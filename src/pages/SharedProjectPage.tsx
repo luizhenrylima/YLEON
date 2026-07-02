@@ -2,9 +2,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { FolderOpen } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
-
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from '@/integrations/supabase/client';
 
 interface ProjectItem {
   id: string;
@@ -21,7 +19,7 @@ export default function SharedProjectPage() {
   // Create a scoped Supabase client that passes the share token as a custom header
   const anonClient = useMemo(() => {
     if (!token) return null;
-    return createClient(SUPABASE_URL, SUPABASE_KEY, {
+    return createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
       global: { headers: { 'x-share-token': token } },
     });
   }, [token]);

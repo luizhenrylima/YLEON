@@ -6,7 +6,7 @@ import logoCreatorMod from '@/assets/logo-creator-mod.svg';
 
 const BELL_ARTE_LIVING_BRAND_ID = '6fa4bb1b-141f-4191-a6e1-33a56fc7837a';
 import { useCompare } from '@/contexts/CompareContext';
-import { supabase } from '@/integrations/supabase/client';
+import { SUPABASE_URL, supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import type { Tables } from '@/integrations/supabase/types';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -784,7 +784,7 @@ export default function ProductDetailPage() {
   // Isso evita ERR_BLOCKED_BY_CLIENT de bloqueadores como uBlock/AdBlock.
   const SUPABASE_HOST = (() => {
     try {
-      return new URL(import.meta.env.VITE_SUPABASE_URL).hostname;
+      return new URL(SUPABASE_URL).hostname;
     } catch {
       return '';
     }
