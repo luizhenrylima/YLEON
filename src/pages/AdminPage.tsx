@@ -273,6 +273,33 @@ function cleanProductDescription(value: string | null | undefined) {
     .trim();
 }
 
+function normalizeSearchValue(value: string | null | undefined) {
+  return (value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+}
+
+async function fetchAllAdminProducts() {
+  const pageSize = 1000;
+  const result: Product[] = [];
+
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await supabase
+      .from('products')
+      .select(ADMIN_PRODUCT_FIELDS)
+      .order('created_at', { ascending: false })
+      .range(from, from + pageSize - 1);
+
+    if (error) throw error;
+    result.push(...(((data as Product[]) || [])));
+    if (!data || data.length < pageSize) break;
+  }
+
+  return result;
+}
+
 async function getFunctionErrorMessage(error: any, fallback: string) {
   const response = error?.context;
   if (response && typeof response.clone === 'function') {
@@ -309,6 +336,10 @@ export default function AdminPage() {
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const [deletingProductId, setDeletingProductId] = useState<string | null>(null);
   const [productSearch, setProductSearch] = useState('');
+  const [productSearchMode, setProductSearchMode] = useState<'all' | 'name'>('all');
+  const [productBrandFilter, setProductBrandFilter] = useState('all');
+  const [productCategoryFilter, setProductCategoryFilter] = useState('all');
+  const [productVisibilityFilter, setProductVisibilityFilter] = useState<'all' | 'visible' | 'hidden'>('all');
   const [importUrl, setImportUrl] = useState('');
   const [isImporting, setIsImporting] = useState(false);
   const [centuryCategoryUrl, setCenturyCategoryUrl] = useState('https://meucentury.com/produtos/mesas-de-cabeceira/');
@@ -413,15 +444,43 @@ export default function AdminPage() {
   const [isCreatingSeller, setIsCreatingSeller] = useState(false);
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
 
+  const productCategoryOptions = useMemo(() => {
+    const source = productBrandFilter === 'all'
+      ? products
+      : products.filter(product => product.brand_id === productBrandFilter);
+
+    return Array.from(new Set(source.map(product => product.category).filter(Boolean)))
+      .sort((a, b) => a.localeCompare(b));
+  }, [productBrandFilter, products]);
+
   const filteredProducts = useMemo(() => {
-    if (!productSearch.trim()) return products;
-    const q = productSearch.toLowerCase();
-    return products.filter(p =>
-      p.name.toLowerCase().includes(q) ||
-      p.category.toLowerCase().includes(q) ||
-      brands.find(b => b.id === p.brand_id)?.name.toLowerCase().includes(q)
-    );
-  }, [products, productSearch, brands]);
+    const q = normalizeSearchValue(productSearch);
+    const brandNameById = new Map(brands.map(brand => [brand.id, brand.name]));
+
+    return products.filter(product => {
+      if (productBrandFilter !== 'all' && product.brand_id !== productBrandFilter) return false;
+      if (productCategoryFilter !== 'all' && product.category !== productCategoryFilter) return false;
+      if (productVisibilityFilter === 'visible' && product.is_hidden) return false;
+      if (productVisibilityFilter === 'hidden' && !product.is_hidden) return false;
+      if (!q) return true;
+
+      const brandName = brandNameById.get(product.brand_id) || '';
+      const searchable = productSearchMode === 'name'
+        ? product.name
+        : `${product.name} ${product.category} ${brandName} ${product.description || ''}`;
+
+      return normalizeSearchValue(searchable).includes(q);
+    });
+  }, [brands, productBrandFilter, productCategoryFilter, productSearch, productSearchMode, productVisibilityFilter, products]);
+
+  const displayedProducts = useMemo(() => filteredProducts.slice(0, 160), [filteredProducts]);
+
+  useEffect(() => {
+    if (productCategoryFilter === 'all') return;
+    if (!productCategoryOptions.includes(productCategoryFilter)) {
+      setProductCategoryFilter('all');
+    }
+  }, [productCategoryFilter, productCategoryOptions]);
 
   const selectedCompositionProducts = useMemo(() => {
     const productMap = new Map(products.map(product => [product.id, product]));
@@ -478,7 +537,7 @@ export default function AdminPage() {
     const fetchAll = async () => {
       const [b, p, c, bc, d, li, st, pst, fp, envs, pe, pcs, cc, ccp, profiles, roles, fCats, fItems, pfc, pd] = await Promise.all([
         supabase.from('brands').select(ADMIN_BRAND_FIELDS).order('name'),
-        supabase.from('products').select(ADMIN_PRODUCT_FIELDS).order('created_at', { ascending: false }),
+        fetchAllAdminProducts(),
         supabase.from('categories').select(ADMIN_CATEGORY_FIELDS).order('name'),
         supabase.from('brand_categories').select('brand_id, category_id'),
         supabase.from('featured_designers').select(ADMIN_FEATURED_DESIGNER_FIELDS).order('display_order'),
@@ -499,7 +558,7 @@ export default function AdminPage() {
         supabase.from('designers' as any).select(ADMIN_PRODUCT_DESIGNER_FIELDS).order('name'),
       ]);
       setBrands(mergeLocalHiddenState((b.data as Brand[]) || [], getLocalHiddenBrandIds()));
-      setProducts(mergeLocalHiddenState((p.data as Product[]) || [], getLocalHiddenProductIds()));
+      setProducts(mergeLocalHiddenState((p as Product[]) || [], getLocalHiddenProductIds()));
       setCategories(c.data || []);
       setBrandCategories(bc.data || []);
       setDesigners((d.data as Designer[]) || []);
@@ -525,7 +584,7 @@ export default function AdminPage() {
   const refreshCatalogData = async () => {
     const [b, p, c, pst, envs, pe, pcs, cc, ccp] = await Promise.all([
       supabase.from('brands').select(ADMIN_BRAND_FIELDS).order('name'),
-      supabase.from('products').select(ADMIN_PRODUCT_FIELDS).order('created_at', { ascending: false }),
+      fetchAllAdminProducts(),
       supabase.from('categories').select(ADMIN_CATEGORY_FIELDS).order('name'),
       supabase.from('product_style_tags').select('product_id, style_tag_id'),
       supabase.from('environments').select(ADMIN_ENVIRONMENT_FIELDS).order('name'),
@@ -535,7 +594,7 @@ export default function AdminPage() {
       (supabase.from('curated_collection_products' as any) as any).select('collection_id, product_id, display_order').order('display_order'),
     ]);
     setBrands(mergeLocalHiddenState((b.data as Brand[]) || [], getLocalHiddenBrandIds()));
-    setProducts(mergeLocalHiddenState((p.data as Product[]) || [], getLocalHiddenProductIds()));
+    setProducts(mergeLocalHiddenState((p as Product[]) || [], getLocalHiddenProductIds()));
     setCategories(c.data || []);
     setProductStyleTags((pst.data as ProductStyleTag[]) || []);
     setEnvironmentsList((envs.data as EnvironmentItem[]) || []);
@@ -2106,15 +2165,89 @@ export default function AdminPage() {
                   {editingProductId ? <><Save size={14} /> Atualizar Produto</> : 'Salvar Produto'}
                 </button>
               </form>
-              <div className="mt-6 space-y-3">
-                <div className="relative">
-                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                  <input placeholder="Buscar produto..." value={productSearch} onChange={e => setProductSearch(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2 bg-secondary border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground" />
+              <div className="mt-6 space-y-4">
+                <div className="rounded-lg border border-border bg-secondary p-3 space-y-3">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Busca de produtos</p>
+                      <p className="text-xs text-muted-foreground">
+                        {filteredProducts.length} de {products.length} produtos encontrados
+                      </p>
+                    </div>
+                    {(productSearch || productBrandFilter !== 'all' || productCategoryFilter !== 'all' || productVisibilityFilter !== 'all' || productSearchMode !== 'all') && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setProductSearch('');
+                          setProductSearchMode('all');
+                          setProductBrandFilter('all');
+                          setProductCategoryFilter('all');
+                          setProductVisibilityFilter('all');
+                        }}
+                        className="text-xs text-accent hover:text-foreground"
+                      >
+                        Limpar filtros
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="relative">
+                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                    <input
+                      placeholder={productSearchMode === 'name' ? 'Buscar somente pelo nome do produto...' : 'Buscar por nome, marca, categoria ou descricao...'}
+                      value={productSearch}
+                      onChange={e => setProductSearch(e.target.value)}
+                      className="w-full pl-9 pr-3 py-2 bg-card border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                    <select
+                      value={productSearchMode}
+                      onChange={e => setProductSearchMode(e.target.value as 'all' | 'name')}
+                      className="w-full rounded-lg border border-border bg-card p-2 text-xs text-foreground"
+                    >
+                      <option value="all">Busca completa</option>
+                      <option value="name">Somente nome</option>
+                    </select>
+                    <select
+                      value={productBrandFilter}
+                      onChange={e => {
+                        setProductBrandFilter(e.target.value);
+                        setProductCategoryFilter('all');
+                      }}
+                      className="w-full rounded-lg border border-border bg-card p-2 text-xs text-foreground"
+                    >
+                      <option value="all">Todas as marcas</option>
+                      {brands.map(brand => (
+                        <option key={brand.id} value={brand.id}>{brand.name}</option>
+                      ))}
+                    </select>
+                    <select
+                      value={productCategoryFilter}
+                      onChange={e => setProductCategoryFilter(e.target.value)}
+                      className="w-full rounded-lg border border-border bg-card p-2 text-xs text-foreground"
+                    >
+                      <option value="all">Todas as categorias</option>
+                      {productCategoryOptions.map(category => (
+                        <option key={category} value={category}>{category}</option>
+                      ))}
+                    </select>
+                    <select
+                      value={productVisibilityFilter}
+                      onChange={e => setProductVisibilityFilter(e.target.value as 'all' | 'visible' | 'hidden')}
+                      className="w-full rounded-lg border border-border bg-card p-2 text-xs text-foreground"
+                    >
+                      <option value="all">Todos os status</option>
+                      <option value="visible">Visiveis no catalogo</option>
+                      <option value="hidden">Ocultos</option>
+                    </select>
+                  </div>
                 </div>
-                <div className="space-y-2 max-h-64 overflow-y-auto">
+
+                <div className="space-y-2 max-h-96 overflow-y-auto">
                   {filteredProducts.length === 0 && <p className="text-xs text-muted-foreground italic text-center py-4">Nenhum produto encontrado</p>}
-                  {filteredProducts.map(p => (
+                  {displayedProducts.map(p => (
                     <div key={p.id} className={`flex justify-between items-center p-3 rounded-lg ${p.is_hidden ? 'bg-muted/70 border border-dashed border-muted-foreground/30' : 'bg-secondary'}`}>
                       <div className="flex flex-col min-w-0 flex-1 mr-2">
                         <span className="flex min-w-0 items-center gap-2">
@@ -2125,7 +2258,7 @@ export default function AdminPage() {
                             </span>
                           )}
                         </span>
-                        <span className="text-[10px] text-muted-foreground truncate">{brands.find(b => b.id === p.brand_id)?.name}</span>
+                        <span className="text-[10px] text-muted-foreground truncate">{brands.find(b => b.id === p.brand_id)?.name} · {p.category}</span>
                       </div>
                       <div className="flex gap-2 shrink-0">
                         <button type="button" onClick={() => startEditProduct(p)} className="text-muted-foreground hover:text-foreground"><Pencil size={14} /></button>
@@ -2151,6 +2284,11 @@ export default function AdminPage() {
                       </div>
                     </div>
                   ))}
+                  {filteredProducts.length > displayedProducts.length && (
+                    <p className="rounded-lg border border-border bg-secondary p-3 text-center text-xs text-muted-foreground">
+                      Mostrando {displayedProducts.length} resultados. Refine por marca, categoria ou nome para encontrar produtos especificos.
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
