@@ -1304,6 +1304,16 @@ export default function ProjectsPage() {
                     </div>
                     <div className="flex gap-2 shrink-0">
                       {canManageProjects && (
+                        <Link
+                          to={`/consultor-valores?project=${selectedProject.id}`}
+                          className="flex items-center gap-2 px-3 py-2.5 rounded-lg border border-border text-xs uppercase tracking-[0.1em] text-muted-foreground hover:text-foreground hover:border-foreground/20 transition-all"
+                          title="Abrir cotações do projeto"
+                        >
+                          <DollarSign size={14} />
+                          Cotação
+                        </Link>
+                      )}
+                      {canManageProjects && (
                         <button
                           onClick={openProjectEdit}
                           className="flex items-center gap-2 px-3 py-2.5 rounded-lg border border-border text-xs uppercase tracking-[0.1em] text-muted-foreground hover:text-foreground hover:border-foreground/20 transition-all"
