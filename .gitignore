@@ -29,3 +29,6 @@ supabase-transfer
 
 .vercel
 supabase/.temp
+
+.vercel
+.env*
